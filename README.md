@@ -33,7 +33,7 @@ docker compose up -d --build
 ```
 *Note: If your system uses Docker Compose v1, use `docker-compose up -d --build`.*
 
-- **Frontend Application:** [http://localhost:3000](http://localhost:3000)
+- **Frontend Application:** [http://localhost:3001](http://localhost:3001)
 - **Backend API & Swagger Documentation:** [http://localhost:5000/swagger](http://localhost:5000/swagger)
 - **API Health Check:** [http://localhost:5000/health](http://localhost:5000/health)
 
@@ -209,7 +209,7 @@ cd frontend
 npm install
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3001](http://localhost:3001) in your browser.
 
 ---
 
