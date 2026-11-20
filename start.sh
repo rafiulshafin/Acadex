@@ -32,7 +32,7 @@ sleep 5
 
 echo ""
 echo "[3/3] Launching web application..."
-URL="http://localhost:3000"
+URL="http://localhost:3001"
 
 if command -v xdg-open &> /dev/null; then
     xdg-open "$URL"

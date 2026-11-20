@@ -38,13 +38,13 @@ timeout /t 5 /nobreak >nul
 
 echo.
 echo [3/3] Opening Acadex in your default web browser...
-start http://localhost:3000
+start http://localhost:3001
 
 echo.
 echo ===================================================
 echo               ACADEX IS LIVE!
 echo ===================================================
-echo  Frontend UI:  http://localhost:3000
+echo  Frontend UI:  http://localhost:3001
 echo  Backend API:  http://localhost:5000/swagger
 echo.
 echo  Demo Credentials:
