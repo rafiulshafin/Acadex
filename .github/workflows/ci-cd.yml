@@ -1,0 +1,154 @@
+name: Acadex CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =========================================================================
+  # 1. Backend CI: Build, Lint, and Automated Unit Tests with Coverage
+  # =========================================================================
+  backend-ci:
+    name: Backend CI (.NET 8 & xUnit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('backend/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore NuGet Dependencies
+        run: dotnet restore backend/Acadex.sln
+
+      - name: Build Solution (Release)
+        run: dotnet build backend/Acadex.sln --configuration Release --no-restore
+
+      - name: Run Unit Tests with Code Coverage
+        run: >
+          dotnet test backend/Acadex.Tests/Acadex.Tests.csproj
+          --configuration Release
+          --no-build
+          --verbosity normal
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: ./TestResults
+
+  # =========================================================================
+  # 2. Frontend CI: Lint, Type Check, and Next.js Production Build
+  # =========================================================================
+  frontend-ci:
+    name: Frontend CI (Next.js & TypeScript)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run TypeScript Type Check
+        run: npx tsc --noEmit
+
+      - name: Build Next.js Application
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:5000/api
+        run: npm run build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-standalone-build
+          path: frontend/.next/standalone
+
+  # =========================================================================
+  # 3. Docker CI: Multi-container Compose Validation & Container Builds
+  # =========================================================================
+  docker-compose-ci:
+    name: Docker & Containerization Verification
+    needs: [backend-ci, frontend-ci]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Docker Compose Configuration
+        run: docker compose config
+
+      - name: Build Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Acadex.Api/Dockerfile
+          push: false
+          tags: acadex-backend:ci-latest
+          load: true
+
+      - name: Build Frontend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: acadex-frontend:ci-latest
+          load: true
+
+  # =========================================================================
+  # 4. Pipeline Summary & Deployment Readiness
+  # =========================================================================
+  pipeline-summary:
+    name: Delivery Pipeline Verification
+    needs: [docker-compose-ci]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Log Deployment Status
+        run: |
+          echo "========================================================"
+          echo "           ACADEX CI/CD PIPELINE SUCCEEDED             "
+          echo "========================================================"
+          echo "✓ Backend API compiled and passed all business rule tests"
+          echo "✓ Frontend Next.js passed type checks and compiled"
+          echo "✓ Docker Compose validated and multi-stage images built"
+          echo "✓ Ready for single-tap containerized production deployment"
+          echo "========================================================"
